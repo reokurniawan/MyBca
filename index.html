@@ -1,0 +1,519 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Eye, EyeOff, Home, CreditCard, History, User, 
+  ArrowRightLeft, Banknote, Smartphone, QrCode, 
+  ChevronLeft, Bell, LogOut, Wallet, Copy, CheckCircle, Clock
+} from 'lucide-react';
+
+// --- Mock Data & Constants ---
+const USER_DATA = {
+  name: "Reo Kurniawan Iriandito P",
+  accountNumber: "62738292902",
+  initialBalance: 826927826, // Saldo sesuai permintaan
+  bcaId: "REOKURNIAWAN"
+};
+
+const QUICK_MENUS = [
+  { id: 'transfer', label: 'Transfer', icon: ArrowRightLeft, color: 'text-blue-600', bg: 'bg-blue-100' },
+  { id: 'topup', label: 'Top Up', icon: Smartphone, color: 'text-blue-600', bg: 'bg-blue-100' },
+  { id: 'qris', label: 'QRIS', icon: QrCode, color: 'text-white', bg: 'bg-blue-600' }, // Center highlight
+  { id: 'cardless', label: 'Cardless', icon: Banknote, color: 'text-blue-600', bg: 'bg-blue-100' },
+  { id: 'flazz', label: 'Flazz', icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-100' },
+];
+
+// --- Components ---
+
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [view, setView] = useState('login'); // login, dashboard, transfer, topup, history, cardless, success
+  const [balance, setBalance] = useState(USER_DATA.initialBalance);
+  const [showBalance, setShowBalance] = useState(false);
+  const [showRekening, setShowRekening] = useState(false); // State untuk toggle hide/show rekening
+  const [transactions, setTransactions] = useState([
+    { id: 1, type: 'DB', title: 'Transfer ke Budi', date: '21 Nov', amount: 150000, isCredit: false },
+    { id: 2, type: 'CR', title: 'Transfer dari Kantor', date: '20 Nov', amount: 5000000, isCredit: true },
+    { id: 3, type: 'DB', title: 'Pembayaran QRIS', date: '19 Nov', amount: 25000, isCredit: false },
+  ]);
+  const [successData, setSuccessData] = useState(null);
+
+  // Helper untuk format rupiah dengan ,00
+  const formatRupiah = (amount) => {
+    return "Rp " + amount.toLocaleString('id-ID') + ",00";
+  };
+
+  // Helper untuk sensor rekening
+  const maskRekening = (rek) => {
+    if (showRekening) return rek;
+    return "••••••" + rek.slice(-4);
+  };
+
+  // --- Views ---
+
+  const LoginView = () => (
+    <div className="flex flex-col h-screen bg-gradient-to-b from-[#00529C] to-[#003366] text-white p-6 relative overflow-hidden">
+      <div className="mt-20 flex flex-col items-center z-10">
+        <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-6 border-2 border-white/20">
+          <User size={40} className="text-white" />
+        </div>
+        <h1 className="text-2xl font-bold mb-1">myBCA</h1>
+        <p className="text-blue-200 text-sm mb-10">Digital Platform for Everyone</p>
+        
+        <div className="w-full max-w-xs space-y-4">
+          <div>
+            <label className="text-xs font-medium text-blue-200 ml-1">BCA ID</label>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center font-semibold tracking-wider">
+              {USER_DATA.bcaId}
+            </div>
+          </div>
+          
+          <div>
+            <label className="text-xs font-medium text-blue-200 ml-1">Password</label>
+            <input 
+              type="password" 
+              className="w-full bg-white rounded-xl p-4 text-blue-900 outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="••••••"
+            />
+          </div>
+
+          <button 
+            onClick={() => { setIsLoggedIn(true); setView('dashboard'); }}
+            className="w-full bg-[#F8991D] hover:bg-orange-500 text-white font-bold py-4 rounded-xl shadow-lg mt-6 transition-all active:scale-95"
+          >
+            Masuk
+          </button>
+        </div>
+      </div>
+
+      {/* Decorative background circles */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-black/20 to-transparent"></div>
+    </div>
+  );
+
+  const DashboardView = () => (
+    <div className="pb-24 bg-slate-50 min-h-screen">
+      {/* Header */}
+      <div className="bg-[#00529C] pt-12 pb-8 px-6 rounded-b-[2.5rem] shadow-lg relative">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-bold">
+              {USER_DATA.name.charAt(0)}
+            </div>
+            <div>
+              <p className="text-blue-100 text-xs">Selamat Pagi,</p>
+              <p className="text-white font-bold truncate max-w-[180px]">{USER_DATA.name}</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Bell className="text-white" size={24} />
+            <LogOut onClick={() => setIsLoggedIn(false)} className="text-white cursor-pointer" size={24} />
+          </div>
+        </div>
+
+        {/* Account Card */}
+        <div className="bg-white rounded-2xl p-5 shadow-xl text-blue-900 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4"></div>
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <p className="text-xs text-gray-500 font-semibold mb-1">Rekening Utama</p>
+                <div className="flex items-center gap-2">
+                  {/* LOGIC MASKING REKENING */}
+                  <p className="font-bold tracking-wide text-lg font-mono">
+                    {maskRekening(USER_DATA.accountNumber)}
+                  </p>
+                  <Copy 
+                    size={14} 
+                    className="text-blue-500 cursor-pointer hover:text-blue-700" 
+                    onClick={() => {
+                      // Copy logic (simulated)
+                      navigator.clipboard.writeText(USER_DATA.accountNumber);
+                      alert('No Rekening Disalin: ' + USER_DATA.accountNumber);
+                    }} 
+                  />
+                  <button onClick={() => setShowRekening(!showRekening)} className="text-gray-400 ml-1">
+                    {showRekening ? <EyeOff size={14}/> : <Eye size={14}/>}
+                  </button>
+                </div>
+              </div>
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Bank_Central_Asia.svg/1200px-Bank_Central_Asia.svg.png" alt="Logo" className="h-4 object-contain opacity-50" />
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Saldo Efektif</p>
+              <div className="flex justify-between items-center">
+                <p className="text-lg font-bold text-[#00529C]">
+                  {showBalance 
+                    ? formatRupiah(balance)
+                    : 'Rp •••••••••'}
+                </p>
+                <button onClick={() => setShowBalance(!showBalance)} className="text-gray-400 hover:text-blue-600">
+                  {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Menu */}
+      <div className="px-6 mt-6">
+        <div className="grid grid-cols-5 gap-4 text-center">
+          {QUICK_MENUS.map((menu) => (
+            <button 
+              key={menu.id} 
+              onClick={() => setView(menu.id === 'qris' ? 'dashboard' : menu.id === 'flazz' ? 'dashboard' : menu.id)}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform group-active:scale-95 ${menu.bg} ${menu.color}`}>
+                <menu.icon size={24} strokeWidth={2} />
+              </div>
+              <span className="text-[10px] font-medium text-gray-600">{menu.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Transactions Preview */}
+      <div className="px-6 mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-blue-900 text-lg">Transaksi Terakhir</h3>
+          <button onClick={() => setView('history')} className="text-sm text-blue-500 font-medium">Lihat Semua</button>
+        </div>
+        <div className="space-y-3">
+          {transactions.slice(0, 3).map((tx) => (
+            <div key={tx.id} className="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.isCredit ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                  {tx.isCredit ? <ArrowRightLeft size={18} className="rotate-45" /> : <ArrowRightLeft size={18} className="-rotate-45" />}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-gray-800">{tx.title}</p>
+                  <p className="text-xs text-gray-400">{tx.date}</p>
+                </div>
+              </div>
+              <p className={`font-bold text-sm ${tx.isCredit ? 'text-green-600' : 'text-red-600'}`}>
+                {tx.isCredit ? '+' : '-'} Rp {tx.amount.toLocaleString('id-ID')}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const TransferView = () => {
+    const [amount, setAmount] = useState('');
+    const [destination, setDestination] = useState('');
+    const [note, setNote] = useState('');
+
+    const handleTransfer = () => {
+      if (!amount || !destination) return;
+      const val = parseInt(amount.replace(/\D/g, ''));
+      if (val > balance) return alert("Saldo tidak mencukupi");
+
+      const newTx = {
+        id: Date.now(),
+        type: 'DB',
+        title: `Trf ke ${destination}`,
+        date: 'Hari ini',
+        amount: val,
+        isCredit: false
+      };
+
+      setBalance(prev => prev - val);
+      setTransactions([newTx, ...transactions]);
+      setSuccessData({ type: 'Transfer Berhasil', amount: val, detail: destination });
+      setView('success');
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 pb-24">
+        <Header title="Transfer Rupiah" onBack={() => setView('dashboard')} />
+        <div className="p-6 space-y-6">
+          <div className="bg-white p-4 rounded-xl shadow-sm">
+            <label className="text-xs text-gray-500 font-medium uppercase">Rekening Sumber</label>
+            <div className="flex justify-between items-center mt-2">
+              <div>
+                {/* MASKING DI HALAMAN TRANSFER JUGA */}
+                <p className="font-bold text-blue-900">{maskRekening(USER_DATA.accountNumber)}</p>
+                <p className="text-sm text-gray-500">Saldo: Rp {balance.toLocaleString('id-ID')}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Daftar Transfer</label>
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-2">
+                {['Budi', 'Siti', 'Mama', 'Toko Online'].map((name, i) => (
+                  <button key={i} onClick={() => setDestination(name)} className="flex-shrink-0 flex flex-col items-center gap-1 w-16">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">
+                      {name.charAt(0)}
+                    </div>
+                    <span className="text-[10px] truncate w-full text-center">{name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <hr className="border-gray-100" />
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Rekening Tujuan / Nama</label>
+              <input 
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                className="w-full border-b border-gray-200 py-2 text-lg font-semibold text-blue-900 focus:border-blue-500 outline-none"
+                placeholder="Input No Rek / Nama"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Nominal Transfer</label>
+              <input 
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full border-b border-gray-200 py-2 text-2xl font-bold text-blue-900 focus:border-blue-500 outline-none placeholder:text-gray-300"
+                placeholder="Rp 0"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Berita (Opsional)</label>
+              <input 
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="w-full border-b border-gray-200 py-2 text-sm text-gray-700 focus:border-blue-500 outline-none"
+                placeholder="Contoh: Bayar makan"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="fixed bottom-0 left-0 w-full bg-white p-4 border-t border-gray-200 max-w-md mx-auto">
+          <button onClick={handleTransfer} className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-800">
+            Lanjut
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const CardlessView = () => {
+    // Mock generating a code
+    const [code, setCode] = useState('');
+    const [step, setStep] = useState('input'); // input, result
+
+    const generateCode = () => {
+      setCode(Math.floor(100000 + Math.random() * 900000).toString());
+      setStep('result');
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header title="Setor Tunai" onBack={() => setView('dashboard')} />
+        <div className="p-6">
+          {step === 'input' ? (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm text-center space-y-4">
+                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-blue-600">
+                  <Banknote size={32} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-blue-900">Setor Tunai Tanpa Kartu</h3>
+                  <p className="text-sm text-gray-500 mt-1">Dapatkan kode transaksi untuk melakukan setor tunai di ATM BCA terdekat.</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm">
+                <label className="text-xs text-gray-500 font-medium">Rekening Tujuan</label>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="w-10 h-10 bg-blue-900 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                    Diri
+                  </div>
+                  <div>
+                    <p className="font-bold text-blue-900">Rekening Sendiri</p>
+                    <p className="text-xs text-gray-500">{maskRekening(USER_DATA.accountNumber)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={generateCode} className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl shadow-lg mt-4">
+                Dapatkan Kode Transaksi
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center mt-10 space-y-6">
+              <div className="bg-white w-full p-8 rounded-2xl shadow-lg text-center relative border-t-4 border-blue-900">
+                <p className="text-gray-500 text-sm font-medium mb-4">Kode Transaksi Anda</p>
+                <h2 className="text-5xl font-bold text-blue-900 tracking-widest mb-2">{code.slice(0,3)} {code.slice(3)}</h2>
+                <p className="text-xs text-orange-500 font-medium bg-orange-50 inline-block px-3 py-1 rounded-full mt-2">
+                  Berlaku hingga: {new Date(Date.now() + 3600000).getHours()}:{new Date(Date.now() + 3600000).getMinutes()}
+                </p>
+                
+                <div className="mt-8 pt-6 border-t border-dashed border-gray-200 text-left">
+                  <p className="text-sm font-bold text-gray-700 mb-2">Cara Setor Tunai:</p>
+                  <ol className="list-decimal list-inside text-xs text-gray-500 space-y-1">
+                    <li>Pilih menu "Transaksi Tanpa Kartu" di ATM.</li>
+                    <li>Masukkan No. HP BCA mobile Anda.</li>
+                    <li>Masukkan Kode Transaksi di atas.</li>
+                    <li>Masukkan uang tunai ke mesin.</li>
+                  </ol>
+                </div>
+              </div>
+              <button onClick={() => setStep('input')} className="text-blue-600 font-medium">Buat Kode Baru</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const HistoryView = () => (
+    <div className="min-h-screen bg-slate-50 pb-24">
+      <Header title="Riwayat Transaksi" onBack={() => setView('dashboard')} />
+      
+      {/* Filter Tabs */}
+      <div className="bg-white p-2 shadow-sm sticky top-[70px] z-10">
+        <div className="flex bg-gray-100 p-1 rounded-lg">
+          <button className="flex-1 py-2 text-sm font-bold text-blue-900 bg-white rounded-md shadow-sm">Semua</button>
+          <button className="flex-1 py-2 text-sm font-medium text-gray-500">Uang Masuk</button>
+          <button className="flex-1 py-2 text-sm font-medium text-gray-500">Uang Keluar</button>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* Date Group */}
+        <p className="text-xs font-bold text-gray-400 mt-2 mb-1">BULAN INI</p>
+        {transactions.map((tx) => (
+          <div key={tx.id} className="bg-white p-4 rounded-xl shadow-sm flex justify-between items-start border border-gray-100">
+            <div className="flex gap-3">
+               <div className={`w-10 h-10 mt-1 rounded-full flex items-center justify-center flex-shrink-0 ${tx.isCredit ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                 <span className="text-xs font-bold">{tx.date.split(' ')[0]}</span>
+              </div>
+              <div>
+                <p className="font-bold text-sm text-blue-900">{tx.title}</p>
+                <p className="text-xs text-gray-400 mt-1">Transfer • {tx.date}</p>
+                <p className="text-[10px] text-gray-400 break-all mt-1">Ref: {Math.floor(Math.random() * 10000000000)}</p>
+              </div>
+            </div>
+            <p className={`font-bold text-sm whitespace-nowrap ${tx.isCredit ? 'text-green-600' : 'text-gray-900'}`}>
+              {tx.isCredit ? '+' : '-'} {tx.amount.toLocaleString('id-ID')}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const SuccessView = () => (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center">
+      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-6 animate-bounce">
+        <CheckCircle size={40} strokeWidth={3} />
+      </div>
+      <h2 className="text-2xl font-bold text-blue-900 mb-2">{successData?.type}</h2>
+      <p className="text-gray-500 mb-8">Transaksi Anda telah berhasil diproses.</p>
+      
+      <div className="w-full bg-gray-50 rounded-xl p-6 mb-8 border border-gray-100">
+        <p className="text-xs text-gray-500 mb-1">Total Transaksi</p>
+        <p className="text-2xl font-bold text-blue-900 mb-4">Rp {successData?.amount.toLocaleString('id-ID')}</p>
+        <div className="h-px bg-gray-200 w-full mb-4"></div>
+        <div className="flex justify-between text-sm mb-2">
+          <span className="text-gray-500">Tujuan</span>
+          <span className="font-medium text-gray-800">{successData?.detail}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Waktu</span>
+          <span className="font-medium text-gray-800">{new Date().toLocaleTimeString()}</span>
+        </div>
+      </div>
+
+      <button onClick={() => setView('dashboard')} className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl shadow-lg">
+        Kembali ke Menu Utama
+      </button>
+    </div>
+  );
+
+  // --- Sub-Components ---
+
+  const Header = ({ title, onBack }) => (
+    <div className="bg-[#00529C] text-white px-4 py-4 pt-10 flex items-center sticky top-0 z-50 shadow-md">
+      <button onClick={onBack} className="p-1 rounded-full hover:bg-white/10">
+        <ChevronLeft size={24} />
+      </button>
+      <h2 className="text-lg font-bold ml-4">{title}</h2>
+    </div>
+  );
+
+  const BottomNav = () => {
+    const navItems = [
+      { id: 'dashboard', label: 'Beranda', icon: Home },
+      { id: 'history', label: 'Riwayat', icon: History },
+      { id: 'qris', label: 'QRIS', icon: QrCode, isCenter: true },
+      { id: 'notif', label: 'Notifikasi', icon: Bell }, // Dummy
+      { id: 'akun', label: 'Akun', icon: User }, // Dummy
+    ];
+
+    return (
+      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 pb-safe pt-2 px-6 flex justify-between items-end max-w-md mx-auto h-[80px]">
+        {navItems.map((item) => {
+          if (item.isCenter) {
+             return (
+               <div key={item.id} className="relative -top-6">
+                 <button className="w-14 h-14 bg-blue-900 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform border-4 border-slate-50">
+                   <item.icon size={24} />
+                 </button>
+               </div>
+             )
+          }
+          return (
+            <button 
+              key={item.id} 
+              onClick={() => item.id !== 'notif' && item.id !== 'akun' && setView(item.id)}
+              className={`flex flex-col items-center gap-1 pb-4 w-14 ${view === item.id ? 'text-blue-900' : 'text-gray-400'}`}
+            >
+              <item.icon size={24} strokeWidth={view === item.id ? 2.5 : 2} />
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    );
+  };
+
+  // --- Main Render ---
+
+  return (
+    <div className="font-sans max-w-md mx-auto bg-white shadow-2xl min-h-screen overflow-hidden relative">
+      {!isLoggedIn ? (
+        <LoginView />
+      ) : (
+        <>
+          {view === 'dashboard' && <DashboardView />}
+          {view === 'transfer' && <TransferView />}
+          {view === 'history' && <HistoryView />}
+          {view === 'cardless' && <CardlessView />}
+          {view === 'success' && <SuccessView />}
+          
+          {/* Top Up View (Simple Placeholder reused logic) */}
+          {view === 'topup' && (
+            <div className="min-h-screen bg-slate-50 pb-24">
+              <Header title="Top Up & Tagihan" onBack={() => setView('dashboard')} />
+              <div className="p-6 grid grid-cols-3 gap-4">
+                {['Pulsa', 'Listrik', 'Air', 'Internet', 'Kartu Kredit', 'E-Money'].map((item, i) => (
+                  <button key={i} className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 aspect-square hover:ring-2 ring-blue-500 transition-all">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                       <Wallet size={20}/>
+                    </div>
+                    <span className="text-xs font-medium text-gray-700">{item}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Show Nav only on main pages */}
+          {['dashboard', 'history'].includes(view) && <BottomNav />}
+        </>
+      )}
+    </div>
+  );
+}
+
